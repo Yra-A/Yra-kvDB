@@ -14,6 +14,7 @@ type BTree struct {
   lock *sync.RWMutex
 }
 
+// NewBTree 初始化 BTree
 func NewBTree() *BTree {
   return &BTree{
     tree: btree.New(32), // 传入 BTree 叶子结点个数
