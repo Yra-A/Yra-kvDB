@@ -2,6 +2,8 @@ package data
 
 import "bitcask-go/fio"
 
+const DataFileNameSuffix = ".data"
+
 // DataFile 数据文件
 type DataFile struct {
   FileId    uint32        // 当前文件 id
@@ -25,6 +27,6 @@ func (db *DataFile) Write(buf []byte) error {
 }
 
 // ReadLogRecord TODO: 根据文件偏移量读取数据
-func (db *DataFile) ReadLogRecord(offset int64) (*LogRecord, error) {
-  return nil, nil
+func (db *DataFile) ReadLogRecord(offset int64) (*LogRecord, int64, error) {
+  return nil, 0, nil
 }

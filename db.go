@@ -3,16 +3,57 @@ package bitcask_go
 import (
   "bitcask-go/data"
   "bitcask-go/index"
+  "errors"
+  "io"
+  "os"
+  "sort"
+  "strconv"
+  "strings"
   "sync"
 )
 
 // DB bitcask 存储引擎实例
 type DB struct {
+  fileIds    []int // 文件 id 列表，用于有序遍历，只能在加载索引时使用
   mu         *sync.RWMutex
   options    Options                   // 数据库配置项
   activeFile *data.DataFile            // 当前活跃数据文件，可以写
   olderFile  map[uint32]*data.DataFile // 旧的数据文件，只能读; 文件 id -> 数据文件
   index      index.Indexer             // 内存索引
+}
+
+// Open 打开存储引擎实例
+func Open(options Options) (*DB, error) {
+  // 校验用户传入的配置项
+  if err := checkOptions(options); err != nil {
+    return nil, err
+  }
+
+  // 判断数据目录是否存在，不存在需要创建这个目录
+  if _, err := os.Stat(options.DirPath); os.IsNotExist(err) {
+    if err := os.MkdirAll(options.DirPath, os.ModePerm); err != nil {
+      return nil, err
+    }
+  }
+
+  // 初始化 DB 实例结构体
+  db := &DB{
+    mu:        new(sync.RWMutex),
+    options:   options,
+    olderFile: make(map[uint32]*data.DataFile),
+    index:     index.NewIndexer(options.indexerType),
+  }
+
+  // 加载数据文件
+  if err := db.loadDataFiles(); err != nil {
+    return nil, err
+  }
+  // 从数据文件中加载索引
+  if err := db.loadIndexFromDataFiles(); err != nil {
+    return nil, err
+  }
+
+  return db, nil
 }
 
 // 根据数据文件日志记录来实际进行往活跃文件中追加写
@@ -154,7 +195,7 @@ func (db *DB) Get(key []byte) ([]byte, error) {
   }
 
   // 找到了数据文件后，根据偏移量读取文件
-  logRecord, err := dataFile.ReadLogRecord(logRecordPos.Offset)
+  logRecord, _, err := dataFile.ReadLogRecord(logRecordPos.Offset)
   if err != nil {
     return nil, err
   }
@@ -165,4 +206,111 @@ func (db *DB) Get(key []byte) ([]byte, error) {
   }
 
   return logRecord.Value, nil
+}
+
+// checkOptions 校验配置项
+func checkOptions(options Options) error {
+  if options.DirPath == "" {
+    return errors.New("database dir path is empty")
+  }
+  if options.DataFileSize <= 0 {
+    return errors.New("database data file size must be greater than 0")
+  }
+}
+
+// loadDataFiles 加载数据文件
+func (db *DB) loadDataFiles() error {
+  dirEntries, err := os.ReadDir(db.options.DirPath)
+  if err != nil {
+    return nil
+  }
+
+  var fileIds []int
+  // 遍历目录下的文件，找到所有以【.data】结尾的文件
+  for _, entry := range dirEntries {
+    if strings.HasSuffix(entry.Name(), data.DataFileNameSuffix) {
+      // 按点分割一下名字，例如 0001.data -> { "0001", "data" }
+      splitedName := strings.Split(entry.Name(), ".")
+      fileId, err := strconv.Atoi(splitedName[0])
+      // 数据目录可能已损坏
+      if err != nil {
+        return ErrDataDirectoryCorrupted
+      }
+      fileIds = append(fileIds, fileId)
+    }
+  }
+
+  // 对文件 id 进行排序，从小到大依次加载
+  sort.Ints(fileIds)
+
+  // 遍历文件 id，依次打开
+  for i, fid := range fileIds {
+    datafile, err := data.OpenDataFile(db.options.DirPath, uint32(fid))
+    if err != nil {
+      return err
+    }
+    // 将最后一个文件变为活跃文件
+    if i == len(fileIds)-1 {
+      db.activeFile = datafile
+    } else { // 说明是旧文件
+      db.olderFile[uint32(fid)] = datafile
+    }
+  }
+  db.fileIds = fileIds
+  return nil
+}
+
+// loadIndexFromDataFiles 从数据文件中加载索引
+// 遍历文件中的所有记录，并更新到内存索引中
+func (db *DB) loadIndexFromDataFiles() error {
+  // 没有文件直接返回
+  if len(db.fileIds) == 0 {
+    return nil
+  }
+
+  // 遍历所有文件 id，处理文件中的记录
+  for i, fd := range db.fileIds {
+    // 获取文件
+    var fileId = uint32(fd)
+    var dataFile *data.DataFile
+    if fileId == db.activeFile.FileId {
+      dataFile = db.activeFile
+    } else {
+      dataFile = db.olderFile[fileId]
+    }
+
+    // 循环处理文件中的所有记录
+    var offset int64 = 0
+    for {
+      logRecord, size, err := dataFile.ReadLogRecord(offset)
+      if err != nil {
+        if err == io.EOF {
+          break
+        }
+        return err
+      }
+      // 构造内存索引并保存
+      logRecordPos := &data.LogRecordPos{
+        Fid:    fileId,
+        Offset: offset,
+      }
+
+      // 对已删除的记录进行处理
+      if logRecord.Type == data.LogRecordDeleted {
+        db.index.Delete(logRecord.Key)
+      } else {
+        db.index.Put(logRecord.Key, logRecordPos)
+      }
+
+      // 更新偏移量，下一次从文件新的偏移量处进行读取
+      offset += size
+    }
+
+    // 还需要维护活跃文件的 Offset
+    if i == len(db.fileIds)-1 {
+      db.activeFile.WriteOff = offset
+    }
+  }
+
+  return nil
 }
