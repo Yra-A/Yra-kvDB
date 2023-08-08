@@ -48,7 +48,7 @@ func Open(options Options) (*DB, error) {
 	if err := db.loadDataFiles(); err != nil {
 		return nil, err
 	}
-	// 从数据文件中加载索引
+	// 从数据文件中加载 LogRecord 并更新索引
 	if err := db.loadIndexFromDataFiles(); err != nil {
 		return nil, err
 	}
