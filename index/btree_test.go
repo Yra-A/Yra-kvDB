@@ -1,71 +1,113 @@
 package index
 
 import (
-  "bitcask-go/data"
-  "github.com/stretchr/testify/assert"
-  "testing"
+	"bitcask-go/data"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestBTree_Put(t *testing.T) {
-  bt := NewBTree()
+	bt := NewBTree()
 
-  res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
-  assert.True(t, res1)
+	res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
+	assert.True(t, res1)
 
-  res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
-  assert.True(t, res2)
+	res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	assert.True(t, res2)
 
-  res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
-  assert.True(t, res3)
+	res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
+	assert.True(t, res3)
 }
 
 func TestBTree_Get(t *testing.T) {
-  bt := NewBTree()
+	bt := NewBTree()
 
-  res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
-  assert.True(t, res1)
-  res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
-  assert.True(t, res2)
-  res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
-  assert.True(t, res3)
+	res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
+	assert.True(t, res1)
+	res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	assert.True(t, res2)
+	res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
+	assert.True(t, res3)
 
-  pos1_cmp := &data.LogRecordPos{
-    Fid:    114,
-    Offset: 514,
-  }
-  pos2_cmp := &data.LogRecordPos{
-    Fid:    1,
-    Offset: 10,
-  }
-  pos3_cmp := &data.LogRecordPos{
-    Fid:    12,
-    Offset: 130,
-  }
+	pos1_cmp := &data.LogRecordPos{
+		Fid:    114,
+		Offset: 514,
+	}
+	pos2_cmp := &data.LogRecordPos{
+		Fid:    1,
+		Offset: 10,
+	}
+	pos3_cmp := &data.LogRecordPos{
+		Fid:    12,
+		Offset: 130,
+	}
 
-  pos1 := bt.Get(nil)
-  pos2 := bt.Get([]byte("abc"))
-  pos3 := bt.Get([]byte{111})
+	pos1 := bt.Get(nil)
+	pos2 := bt.Get([]byte("abc"))
+	pos3 := bt.Get([]byte{111})
 
-  assert.Equal(t, pos1, pos1_cmp)
-  assert.Equal(t, pos2, pos2_cmp)
-  assert.Equal(t, pos3, pos3_cmp)
+	assert.Equal(t, pos1, pos1_cmp)
+	assert.Equal(t, pos2, pos2_cmp)
+	assert.Equal(t, pos3, pos3_cmp)
 }
 
 func TestBTree_Delete(t *testing.T) {
-  bt := NewBTree()
+	bt := NewBTree()
 
-  res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
-  assert.True(t, res1)
-  res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
-  assert.True(t, res2)
-  res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
-  assert.True(t, res3)
+	res1 := bt.Put(nil, &data.LogRecordPos{Fid: 114, Offset: 514})
+	assert.True(t, res1)
+	res2 := bt.Put([]byte("abc"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	assert.True(t, res2)
+	res3 := bt.Put([]byte{111}, &data.LogRecordPos{Fid: 12, Offset: 130})
+	assert.True(t, res3)
 
-  res4 := bt.Delete(nil)
-  assert.True(t, res4)
-  res5 := bt.Delete([]byte("abc"))
-  assert.True(t, res5)
-  res6 := bt.Delete([]byte{111})
-  assert.True(t, res6)
+	res4 := bt.Delete(nil)
+	assert.True(t, res4)
+	res5 := bt.Delete([]byte("abc"))
+	assert.True(t, res5)
+	res6 := bt.Delete([]byte{111})
+	assert.True(t, res6)
 
+}
+
+func TestBTree_Iterator(t *testing.T) {
+	bt1 := NewBTree()
+	// 1.BTree 为空的情况
+	iter1 := bt1.Iterator(false)
+	assert.Equal(t, false, iter1.Valid())
+
+	//	2.BTree 有数据的情况
+	bt1.Put([]byte("ccde"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	iter2 := bt1.Iterator(false)
+	assert.Equal(t, true, iter2.Valid())
+	assert.NotNil(t, iter2.Key())
+	assert.NotNil(t, iter2.Value())
+	iter2.Next()
+	assert.Equal(t, false, iter2.Valid())
+
+	// 3.有多条数据
+	bt1.Put([]byte("acee"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	bt1.Put([]byte("eede"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	bt1.Put([]byte("bbcd"), &data.LogRecordPos{Fid: 1, Offset: 10})
+	iter3 := bt1.Iterator(false)
+	for iter3.Rewind(); iter3.Valid(); iter3.Next() {
+		assert.NotNil(t, iter3.Key())
+	}
+
+	iter4 := bt1.Iterator(true)
+	for iter4.Rewind(); iter4.Valid(); iter4.Next() {
+		assert.NotNil(t, iter4.Key())
+	}
+
+	// 4.测试 seek
+	iter5 := bt1.Iterator(false)
+	for iter5.Seek([]byte("cc")); iter5.Valid(); iter5.Next() {
+		assert.NotNil(t, iter5.Key())
+	}
+
+	// 5.反向遍历的 seek
+	iter6 := bt1.Iterator(true)
+	for iter6.Seek([]byte("zz")); iter6.Valid(); iter6.Next() {
+		assert.NotNil(t, iter6.Key())
+	}
 }
