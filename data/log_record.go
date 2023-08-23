@@ -129,3 +129,27 @@ func getLogRecordCRC(lr *LogRecord, header []byte) uint32 {
 
 	return crc
 }
+
+// EncodeLogRecordPos 对位置信息进行编码，生成字节数组
+// 位置信息只有 file id 和 offset
+func EncodeLogRecordPos(pos *LogRecordPos) []byte {
+	buf := make([]byte, binary.MaxVarintLen32+binary.MaxVarintLen64)
+	var index = 0
+
+	// 写入 fid 和 offset
+	index += binary.PutVarint(buf[index:], int64(pos.Fid))
+	index += binary.PutVarint(buf[index:], pos.Offset)
+	return buf[:index]
+}
+
+// DecodeLogRecordPos 解码字节数组得到 LogRecordPos
+func DecodeLogRecordPos(buf []byte) *LogRecordPos {
+	var index = 0
+	fileId, n := binary.Varint(buf[index:])
+	index += n
+	offset, _ := binary.Varint(buf[index:])
+	return &LogRecordPos{
+		Fid:    uint32(fileId),
+		Offset: offset,
+	}
+}

@@ -13,7 +13,7 @@ type Options struct {
 	SyncWrites bool
 
 	// 索引类型
-	indexerType IndexerType
+	IndexerType IndexerType
 }
 
 type IteratorOptions struct {
@@ -40,13 +40,16 @@ const (
 
 	// ARTIndex 自适应基数树索引
 	ARTIndex
+
+	// BPlusTree B+ 树索引，将索引存储到磁盘上
+	BPlusTree
 )
 
 var DefaultOptions = Options{
 	DirPath:      os.TempDir(),
 	DataFileSize: 256 * 1024 * 1024, // 256 MB
 	SyncWrites:   false,
-	indexerType:  BTreeIndex,
+	IndexerType:  BPlusTree,
 }
 
 var DefaultIteratorOptions = IteratorOptions{

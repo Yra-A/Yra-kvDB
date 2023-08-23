@@ -56,6 +56,10 @@ func (bt *BTree) Size() int {
 	return bt.tree.Len()
 }
 
+func (bt *BTree) Close() error {
+	return nil
+}
+
 func (bt *BTree) Iterator(reverse bool) Iterator {
 	if bt.tree == nil {
 		return nil
@@ -104,7 +108,7 @@ func (bti *btreeIterator) Seek(key []byte) {
 		})
 	} else {
 		bti.curIndex = sort.Search(len(bti.values), func(i int) bool {
-			return bytes.Compare(bti.values[i].key, key) <= 0
+			return bytes.Compare(bti.values[i].key, key) >= 0
 		})
 	}
 }
