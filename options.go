@@ -12,8 +12,14 @@ type Options struct {
 	// 每次写入数据后是否进行持久化
 	SyncWrites bool
 
+	// 累计写到多少字节后进行持久化
+	BytesPerSync uint
+
 	// 索引类型
 	IndexerType IndexerType
+
+	// 启动时是否使用 MMap 加载数据
+	MMapAtStartup bool
 }
 
 type IteratorOptions struct {
@@ -41,15 +47,17 @@ const (
 	// ARTIndex 自适应基数树索引
 	ARTIndex
 
-	// BPlusTree B+ 树索引，将索引存储到磁盘上
-	BPlusTree
+	// BPlusTreeIndex B+ 树索引，将索引存储到磁盘上
+	BPlusTreeIndex
 )
 
 var DefaultOptions = Options{
-	DirPath:      os.TempDir(),
-	DataFileSize: 256 * 1024 * 1024, // 256 MB
-	SyncWrites:   false,
-	IndexerType:  BPlusTree,
+	DirPath:       os.TempDir(),
+	DataFileSize:  256 * 1024 * 1024, // 256 MB
+	SyncWrites:    false,
+	BytesPerSync:  0,
+	IndexerType:   BTreeIndex,
+	MMapAtStartup: true,
 }
 
 var DefaultIteratorOptions = IteratorOptions{

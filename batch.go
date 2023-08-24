@@ -22,7 +22,7 @@ type WriteBatch struct {
 // NewWriteBatch 初始化 WriteBatch
 func (db *DB) NewWriteBatch(opts WriteBatchOptions) *WriteBatch {
 	// 如果索引类型是 B+ 树，且保存事务序列号的文件不存在，同时不是第一次加载数据库（第一次加载文件一定为空），则禁用 WriteBatch 功能
-	if db.options.IndexerType == BPlusTree && !db.seqNoFileExist && !db.isInitial {
+	if db.options.IndexerType == BPlusTreeIndex && !db.seqNoFileExist && !db.isInitial {
 		panic("cannot use write batch, seq no file not exists")
 	}
 	return &WriteBatch{
