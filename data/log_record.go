@@ -17,6 +17,7 @@ const (
 type LogRecordPos struct {
 	Fid    uint32 // 文件 id，表示数据存在了磁盘上哪个文件中
 	Offset int64  // 偏移量，表示数据在文件中的位置
+	Size   uint32 // 标识数据在磁盘上的大小
 }
 
 // TransactionRecord 暂存事务相关的数据
@@ -131,9 +132,9 @@ func getLogRecordCRC(lr *LogRecord, header []byte) uint32 {
 }
 
 // EncodeLogRecordPos 对位置信息进行编码，生成字节数组
-// 位置信息只有 file id 和 offset
+// 位置信息只有 file id 、 offset 和 size
 func EncodeLogRecordPos(pos *LogRecordPos) []byte {
-	buf := make([]byte, binary.MaxVarintLen32+binary.MaxVarintLen64)
+	buf := make([]byte, binary.MaxVarintLen32*2+binary.MaxVarintLen64)
 	var index = 0
 
 	// 写入 fid 和 offset
@@ -147,9 +148,12 @@ func DecodeLogRecordPos(buf []byte) *LogRecordPos {
 	var index = 0
 	fileId, n := binary.Varint(buf[index:])
 	index += n
-	offset, _ := binary.Varint(buf[index:])
+	offset, n := binary.Varint(buf[index:])
+	index += n
+	size, _ := binary.Varint(buf[index:])
 	return &LogRecordPos{
 		Fid:    uint32(fileId),
 		Offset: offset,
+		Size:   uint32(size),
 	}
 }

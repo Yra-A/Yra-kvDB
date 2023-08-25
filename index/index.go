@@ -9,13 +9,13 @@ import (
 // Indexer 内存中的索引接口，key 对应了数据在磁盘上的位置
 type Indexer interface {
 	// Put 向索引中存储信息，key 对应数据在磁盘上的位置
-	Put(key []byte, pos *data.LogRecordPos) bool
+	Put(key []byte, pos *data.LogRecordPos) *data.LogRecordPos
 
 	// Get 根据 key 取出对应的位置信息
 	Get(key []byte) *data.LogRecordPos
 
-	// Delete 根据 key 删除对应的位置信息
-	Delete(key []byte) bool
+	// Delete 根据 key 删除对应的位置信息，返回旧数据 和 是否删除成功
+	Delete(key []byte) (*data.LogRecordPos, bool)
 
 	// Iterator 返回索引迭代器，根据参数 reverse 选择是否为反向迭代器
 	Iterator(reverse bool) Iterator
