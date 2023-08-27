@@ -369,6 +369,14 @@ func (db *DB) setActiveDataFile() error {
   return nil
 }
 
+// Backup 备份数据库，将数据文件拷贝到新的目录中
+func (db *DB) Backup(dir string) error {
+  db.mu.RLock()
+  defer db.mu.RUnlock()
+  // 第三个参数填写要排除的文件 pattern
+  return utils.CopyDir(db.options.DirPath, dir, []string{fileLockName})
+}
+
 // Put 数据库写操作，往数据库中写入 K-V 数据，保证 key 非空
 // 先写磁盘文件，在更新内存索引
 func (db *DB) Put(key []byte, value []byte) error {
